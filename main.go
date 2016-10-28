@@ -240,9 +240,11 @@ func setTemp() {
 					setStatus(OFF)
 				}
 				log.Printf("Max Temp: %f, Current Temp: %f", MAXTEMP, c)
+				time.Sleep(30 * time.Second)
+			} else {
+				time.Sleep(30 * time.Second)
 			}
 		}
-		time.Sleep(30 * time.Second)
 		cleanUpTimeList(STARTTIME, ENDTIME)
 	}
 }
@@ -308,4 +310,5 @@ func cleanUpTimeList(st, et []int64) {
 			STARTTIME = append(st[:i], st[i+1:]...)
 		}
 	}
+	log.Printf("E: %v, S: %v", ENDTIME, STARTTIME)
 }
