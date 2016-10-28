@@ -29,8 +29,11 @@ const (
 
 var STATUS bool
 var MAXTEMP float64 = -273
+var STARTTIME []int64
+var ENDTIME []int64
 
 func main() {
+	log.Println("Starting up service...")
 	go setTemp()
 
 	http.Handle("/api/v1", http.HandlerFunc(incomingTraffic))
@@ -57,6 +60,7 @@ func incomingTraffic(w http.ResponseWriter, r *http.Request) {
 
 		if isValidKey(js["secretkey"].(string)) {
 			MAXTEMP = js["temperature"].(float64)
+			setInterval(js["starttime"].(time.Time).Unix(), int64(js["duration"].(time.Duration)))
 			fmt.Fprintf(w, "Set the temp to %f\n", MAXTEMP)
 		}
 	}
@@ -217,17 +221,23 @@ func isValidKey(key string) bool {
 
 func setTemp() {
 	for {
-		c, err := getTemp(DEVICE)
-		if err != nil {
-			log.Printf("setTemp error 1: ", err)
+		t := time.Now().Unix()
+		for i, _ := range STARTTIME {
+			if t >= STARTTIME[i] && t <= ENDTIME[i] {
+				c, err := getTemp(DEVICE)
+				if err != nil {
+					log.Printf("setTemp error 1: ", err)
+				}
+				if c <= MAXTEMP {
+					setStatus(ON)
+				} else {
+					setStatus(OFF)
+				}
+				log.Printf("Max Temp: %f, Current Temp: %f", MAXTEMP, c)
+			}
 		}
-		if c <= MAXTEMP {
-			setStatus(ON)
-		} else {
-			setStatus(OFF)
-		}
-		log.Printf("Max Temp: %f, Current Temp: %f", MAXTEMP, c)
 		time.Sleep(30 * time.Second)
+		cleanUpTimeList(STARTTIME, ENDTIME)
 	}
 }
 
@@ -277,5 +287,19 @@ func setStatus(s bool) {
 		STATUS = ON
 	} else {
 		STATUS = OFF
+	}
+}
+
+func setInterval(st, dur int64) {
+	append(STARTTIME, st)
+	append(ENDTIME, st + dur)
+}
+
+func cleanUpTimeList(st, et []int64) {
+	for i, e := range et {
+		if e < time.Now().Unix() {
+			ENDTIME = append(et[:i], et[i+1:]...)
+			STARTTIME = append(st[:i], st[i+1:]...)
+		}
 	}
 }
