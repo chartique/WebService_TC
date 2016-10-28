@@ -26,7 +26,6 @@ const (
 	ON bool = true
 	OFF bool = false
 )
-
 var STATUS bool
 var MAXTEMP float64 = -273
 var STARTTIME []int64
@@ -60,7 +59,7 @@ func incomingTraffic(w http.ResponseWriter, r *http.Request) {
 
 		if isValidKey(js["secretkey"].(string)) {
 			MAXTEMP = js["temperature"].(float64)
-			setInterval(int64(js["starttime"].(float64)), int64(js["duration"].(float64)))
+			setInterval(int64(js["starttime"].(float64)), int64(js["duration"].(float64)/1000000000))
 
 			data := map[string]string{"status": "ok"}
 			res, err := json.Marshal(data)
