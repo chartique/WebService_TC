@@ -227,23 +227,25 @@ func isValidKey(key string) bool {
 func setTemp() {
 	for {
 		t := time.Now().Unix()
-		for i, _ := range STARTTIME {
-			if t >= STARTTIME[i] && t <= ENDTIME[i] {
-				c, err := getTemp(DEVICE)
-				if err != nil {
-					log.Printf("setTemp error 1: ", err)
+		if len(STARTTIME) > 0 {
+			for i, _ := range STARTTIME {
+				if t >= STARTTIME[i] && t <= ENDTIME[i] {
+					c, err := getTemp(DEVICE)
+					if err != nil {
+						log.Printf("setTemp error 1: ", err)
+					}
+					if c <= MAXTEMP {
+						setStatus(ON)
+					} else {
+						setStatus(OFF)
+					}
+					log.Printf("Max Temp: %f, Current Temp: %f", MAXTEMP, c)
+					time.Sleep(1 * time.Second)
 				}
-				if c <= MAXTEMP {
-					setStatus(ON)
-				} else {
-					setStatus(OFF)
-				}
-				log.Printf("Max Temp: %f, Current Temp: %f", MAXTEMP, c)
-				time.Sleep(1 * time.Second)
-			} else {
-				setStatus(OFF)
-				time.Sleep(1 * time.Second)
 			}
+		} else {
+			setStatus(OFF)
+			time.Sleep(1 * time.Second)
 		}
 		cleanUpTimeList(STARTTIME, ENDTIME)
 	}
