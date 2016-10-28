@@ -61,7 +61,13 @@ func incomingTraffic(w http.ResponseWriter, r *http.Request) {
 		if isValidKey(js["secretkey"].(string)) {
 			MAXTEMP = js["temperature"].(float64)
 			setInterval(int64(js["starttime"].(float64)), int64(js["duration"].(float64)))
-			fmt.Fprintf(w, "Set the temp to %f\n", MAXTEMP)
+
+			data := map[string]string{"status": "ok"}
+			res, err := json.Marshal(data)
+			if err != nil {
+				log.Printf("error 104: %v\n", err)
+			}
+			fmt.Fprint(w, string(res))
 		}
 	}
 }
