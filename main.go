@@ -32,60 +32,10 @@ var MAXTEMP float64 = -273
 
 func main() {
 	go setTemp()
-	go func() {
-		time.Sleep(5 * time.Second)
-		fmt.Println("Posting auth...")
-
-		p := map[string]string{
-			"username": "admin",
-			"password": "admin",
-		}
-		post, err := json.Marshal(p)
-		if err != nil {
-			log.Printf("failed test 101: %v\n", err)
-		}
-		resp, err := http.Post("http://localhost:8080/api/auth", "json/application", strings.NewReader(string(post)))
-		if err != nil {
-			log.Printf("failed test 102: %v\n", err)
-		}
-
-		b := make([]byte, resp.ContentLength)
-		resp.Body.Read(b)
-		var key map[string]string
-		err = json.Unmarshal(b, &key)
-		if err != nil {
-			log.Printf("failed test 103: %v\n", err)
-		}
-
-		fmt.Printf("Resp: %s\n", key["SECRETKEY"])
-
-		p2 := map[string]interface{}{
-			"secretkey": key["SECRETKEY"],
-			"datetime": time.Now().Unix(),
-			"temperature": 23,
-			"starttime": time.Now().Unix(),
-			"duration": time.Duration(2 * time.Hour),
-		}
-		post2, err := json.Marshal(p2)
-		if err != nil {
-			log.Printf("failed test 104: %v\n", err)
-		}
-		resp2, err := http.Post("http://localhost:8080/api/auth", "json/application", strings.NewReader(string(post2)))
-		if err != nil {
-			log.Printf("failed test 105: %v\n", err)
-		}
-
-		b2 := make([]byte, resp2.ContentLength)
-		resp.Body.Read(b2)
-
-		fmt.Printf("Resp: %s\n", string(b2))
-
-
-	}()
 
 	http.Handle("/api/v1", http.HandlerFunc(incomingTraffic))
 	http.Handle("/api/auth", http.HandlerFunc(authenticate))
-	log.Println(http.ListenAndServe(":8080", nil))
+	log.Println(http.ListenAndServe("0.0.0.0:80", nil))
 }
 
 
@@ -106,7 +56,7 @@ func incomingTraffic(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if isValidKey(js["secretkey"].(string)) {
-			MAXTEMP = js["temperature"].(string)
+			MAXTEMP = js["temperature"].(float64)
 		}
 	}
 }
@@ -137,7 +87,7 @@ func authenticate(w http.ResponseWriter, r *http.Request) {
 				}
 				fmt.Fprint(w, string(res))
 			} else {
-				key := generateKey(js["username"].(string))
+				key := generateKey()
 				insertKey(js["username"].(string), key)
 
 				data := map[string]string{"SECRETKEY": key}
@@ -170,7 +120,7 @@ func checkCredentials(user, pw string) bool {
 }
 
 
-func generateKey(user string) string {
+func generateKey() string {
 	length := 64
 	can := []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890!@#$^&-=+")
 	rand.Seed(time.Now().UnixNano())
