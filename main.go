@@ -105,8 +105,8 @@ func incomingTraffic(w http.ResponseWriter, r *http.Request) {
 			log.Printf("error 202: %v\n", err)
 		}
 
-		if isValidKey(js["secretkey"]) {
-			MAXTEMP = js["temperature"]
+		if isValidKey(js["secretkey"].(string)) {
+			MAXTEMP = js["temperature"].(string)
 		}
 	}
 }
