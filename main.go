@@ -239,11 +239,11 @@ func setTemp() {
 					setStatus(OFF)
 				}
 				log.Printf("Max Temp: %f, Current Temp: %f", MAXTEMP, c)
-				time.Sleep(30 * time.Second)
+				time.Sleep(1 * time.Second)
 			} else {
 				MAXTEMP = -273
 				setStatus(OFF)
-				time.Sleep(30 * time.Second)
+				time.Sleep(1 * time.Second)
 			}
 		}
 		cleanUpTimeList(STARTTIME, ENDTIME)
