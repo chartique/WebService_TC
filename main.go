@@ -60,8 +60,7 @@ func incomingTraffic(w http.ResponseWriter, r *http.Request) {
 
 		if isValidKey(js["secretkey"].(string)) {
 			MAXTEMP = js["temperature"].(float64)
-			fmt.Printf("Test: %v\n", js["starttime"])
-			setInterval(int64(js["starttime"].(float64)), int64(js["duration"].(time.Duration)))
+			setInterval(int64(js["starttime"].(float64)), int64(js["duration"].(float64)))
 			fmt.Fprintf(w, "Set the temp to %f\n", MAXTEMP)
 		}
 	}
