@@ -293,6 +293,7 @@ func setStatus(s bool) {
 func setInterval(st, dur int64) {
 	append(STARTTIME, st)
 	append(ENDTIME, st + dur)
+	log.Printf("Start time: %v, End time: %v", STARTTIME, ENDTIME)
 }
 
 func cleanUpTimeList(st, et []int64) {
