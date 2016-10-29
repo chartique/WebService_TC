@@ -26,10 +26,13 @@ const (
 	ON bool = true
 	OFF bool = false
 )
-var STATUS bool
-var MAXTEMP float64 = -273
-var STARTTIME []int64
-var ENDTIME []int64
+
+var (
+	STATUS bool
+	MAXTEMP float64 = -273
+	STARTTIME int64
+	ENDTIME int64
+)
 
 func main() {
 	log.Println("Starting up service...")
@@ -39,7 +42,6 @@ func main() {
 	http.Handle("/api/auth", http.HandlerFunc(authenticate))
 	log.Println(http.ListenAndServe("0.0.0.0:80", nil))
 }
-
 
 func incomingTraffic(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "POST" {
@@ -58,19 +60,27 @@ func incomingTraffic(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if isValidKey(js["secretkey"].(string)) {
-			MAXTEMP = js["temperature"].(float64)
-			setInterval(int64(js["starttime"].(float64)), int64(js["duration"].(float64)/1000000000))
-
-			data := map[string]string{"status": "ok"}
+			data := make(map[string]string)
+			if insertPost(js["secretkey"].(string),
+				"",
+				time.Now().Unix(),
+				int64(js["starttime"].(float64)),
+				int64(js["duration"].(float64)),
+				js["temperature"].(float64),
+			) {
+				data = map[string]string{"status": "ok"}
+			} else {
+				data = map[string]string{"status": "failed"}
+			}
 			res, err := json.Marshal(data)
 			if err != nil {
 				log.Printf("error 104: %v\n", err)
 			}
+
 			fmt.Fprint(w, string(res))
 		}
 	}
 }
-
 
 func authenticate(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "POST" {
@@ -111,9 +121,8 @@ func authenticate(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-
 func checkCredentials(user, pw string) bool {
-	db, err := sql.Open("postgres", "user=postgres password=raspberry dbname=home host=192.168.1.99 port=5432")
+	db, err := sql.Open("postgres", getDbCred())
 	if err != nil {
 		log.Printf("couldn't establish connection: %v\n", err)
 	}
@@ -129,7 +138,6 @@ func checkCredentials(user, pw string) bool {
 	return true
 }
 
-
 func generateKey() string {
 	length := 64
 	can := []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890!@#$^&-=+")
@@ -141,24 +149,22 @@ func generateKey() string {
 	return string(r)
 }
 
-
 func insertKey(user, key string) {
-	db, err := sql.Open("postgres", "user=postgres password=raspberry dbname=home host=192.168.1.99 port=5432")
+	db, err := sql.Open("postgres", getDbCred())
 	if err != nil {
 		log.Printf("couldn't establish connection: %v\n", err)
 	}
 	defer db.Close()
 
 	_, err = db.Exec("INSERT INTO live.user_key(user_id, secretkey, duration) VALUES((SELECT id FROM live.user WHERE username=$1), $2, $3)",
-		user, key, int64(time.Duration(24*time.Hour)))
+		user, key, int64(time.Duration(24 * time.Hour)))
 	if err != nil {
 		fmt.Printf("couldn't execute command: %v\n", err)
 	}
 }
 
-
 func userHasValidKey(user string) bool {
-	db, err := sql.Open("postgres", "user=postgres password=raspberry dbname=home host=192.168.1.99 port=5432")
+	db, err := sql.Open("postgres", getDbCred())
 	if err != nil {
 		log.Printf("couldn't establish connection: %v\n", err)
 	}
@@ -175,16 +181,15 @@ func userHasValidKey(user string) bool {
 	if err != nil {
 		return false
 	}
-	if time.Now().UnixNano()-t2.UnixNano() > int64(time.Duration(24*time.Hour)) {
+	if time.Now().UnixNano() - t2.UnixNano() > int64(time.Duration(24 * time.Hour)) {
 		return false
 	}
 
 	return true
 }
 
-
 func extractValidKey(user string) string {
-	db, err := sql.Open("postgres", "user=postgres password=raspberry dbname=home host=192.168.1.99 port=5432")
+	db, err := sql.Open("postgres", getDbCred())
 	if err != nil {
 		log.Printf("couldn't establish connection: %v\n", err)
 	}
@@ -198,9 +203,8 @@ func extractValidKey(user string) string {
 	return key
 }
 
-
 func isValidKey(key string) bool {
-	db, err := sql.Open("postgres", "user=postgres password=raspberry dbname=home host=192.168.1.99 port=5432")
+	db, err := sql.Open("postgres", getDbCred())
 	if err != nil {
 		log.Printf("couldn't establish connection: %v\n", err)
 	}
@@ -217,7 +221,7 @@ func isValidKey(key string) bool {
 	if err != nil {
 		return false
 	}
-	if time.Now().UnixNano()-t2.UnixNano() > int64(time.Duration(24*time.Hour)) {
+	if time.Now().UnixNano() - t2.UnixNano() > int64(time.Duration(24 * time.Hour)) {
 		return false
 	}
 
@@ -227,27 +231,22 @@ func isValidKey(key string) bool {
 func setTemp() {
 	for {
 		t := time.Now().Unix()
-		if len(STARTTIME) > 0 {
-			for i, _ := range STARTTIME {
-				if t >= STARTTIME[i] && t <= ENDTIME[i] {
-					c, err := getTemp(DEVICE)
-					if err != nil {
-						log.Printf("setTemp error 1: ", err)
-					}
-					if c <= MAXTEMP {
-						setStatus(ON)
-					} else {
-						setStatus(OFF)
-					}
-					log.Printf("Max Temp: %f, Current Temp: %f", MAXTEMP, c)
-					time.Sleep(1 * time.Second)
-				}
+		if t >= STARTTIME && t <= ENDTIME {
+			c, err := getTemp(DEVICE)
+			if err != nil {
+				log.Printf("setTemp error 1: %v", err)
 			}
+			if c <= MAXTEMP {
+				setStatus(ON)
+			} else {
+				setStatus(OFF)
+			}
+			log.Printf("Max Temp: %f, Current Temp: %f", MAXTEMP, c)
+			time.Sleep(1 * time.Second)
 		} else {
 			setStatus(OFF)
 			time.Sleep(1 * time.Second)
 		}
-		cleanUpTimeList(STARTTIME, ENDTIME)
 	}
 }
 
@@ -273,7 +272,7 @@ func getTemp(dev string) (float64, error) {
 	if err != nil {
 		return -3, err
 	}
-	return float64(t)/1000, nil
+	return float64(t) / 1000, nil
 }
 
 func setStatus(s bool) {
@@ -300,17 +299,51 @@ func setStatus(s bool) {
 	}
 }
 
-func setInterval(st, dur int64) {
-	STARTTIME = append(STARTTIME, st)
-	ENDTIME = append(ENDTIME, st + dur)
-	log.Printf("E: %v, S: %v", ENDTIME, STARTTIME)
+func getDbCred() string {
+	mtx := &sync.Mutex{}
+	f := "/var/pglogin"
+	mtx.Lock()
+	defer mtx.Unlock()
+	fio, err := os.Open(f)
+	if err != nil {
+		log.Printf("dbcred 1: %v\n", err)
+	}
+	defer fio.Close()
+	bio := bufio.NewReader(fio)
+
+	bts, err := bio.Peek(1000)
+	if err != nil && err != io.EOF {
+		log.Printf("dbcred 2: %v\n", err)
+	}
+	return string(bts)
 }
 
-func cleanUpTimeList(st, et []int64) {
-	for i, e := range et {
-		if e < time.Now().Unix() {
-			ENDTIME = append(et[:i], et[i+1:]...)
-			STARTTIME = append(st[:i], st[i+1:]...)
-		}
+func insertPost(key, act string, now, start, dur int64, temp float64) bool {
+	stmt := `
+		INSERT INTO live.temperature_actions (
+		  secretkey,
+		  temperature,
+		  unixtime,
+		  starttime,
+		  duration,
+		  inactive
+		)
+		VALUES (
+		  $1, $2, $3, $4, $5, $6
+		)
+	`
+
+	db, err := sql.Open("postgres", getDbCred())
+	if err != nil {
+		log.Printf("insertPost err1: %v\n", err)
+		return false
 	}
+	defer db.Close()
+
+	_, err = db.Exec(stmt, key, temp, now, start, dur, act)
+	if err != nil {
+		fmt.Printf("insertPost err2: %v\n", err)
+		return false
+	}
+	return true
 }
