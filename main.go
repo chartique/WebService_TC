@@ -623,7 +623,11 @@ func getSetTemp(id int64) (float64, error) {
 		return -273, nil
 	}
 
-	db, err := sql.Open("postgres", getDbCred())
+	cred, err := getDbCred()
+	if err != nil {
+		return -273, err
+	}
+	db, err := sql.Open("postgres", cred)
 	if err != nil {
 		return -273, err
 	}
