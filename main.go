@@ -271,6 +271,7 @@ func setTemp() {
 	for {
 		cleanTempActions()
 		id := getCurrentAction()
+		fmt.Printf("id: %d\n", id)
 		MAXTEMP = getSetTemp(id)
 
 		c, err := getTemp(DEVICE)
@@ -284,7 +285,7 @@ func setTemp() {
 			setStatus(OFF)
 		}
 		log.Printf("Max Temp: %f, Current Temp: %f", MAXTEMP, c)
-		time.Sleep(4 * time.Second)
+		time.Sleep(3500 * time.Millisecond)
 	}
 }
 
