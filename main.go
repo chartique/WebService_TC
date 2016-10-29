@@ -229,7 +229,6 @@ func cancelTemp(w http.ResponseWriter, r *http.Request) {
 		} else {
 			fmt.Fprint(w, `{"status": "failed"}`)
 		}
-		fmt.Fprint(w, `{"status": "failed"}`)
 	}
 }
 
