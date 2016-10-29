@@ -389,7 +389,9 @@ func insertPost(key, act string, now, start, dur int64, temp float64) bool {
 func cleanTempActions() {
 	stmt := `
 		SELECT
-		  *
+		  id,
+		  starttime,
+		  duration
 		FROM live.temperature_actions
 	`
 
@@ -400,13 +402,13 @@ func cleanTempActions() {
 	`
 	db, err := sql.Open("postgres", getDbCred())
 	if err != nil {
-		log.Printf("cleanActions err1: %v\n", err)
+		log.Printf("cleanTempActions err1: %v\n", err)
 	}
 	defer db.Close()
 
 	rows, err := db.Query(stmt)
 	if err != nil {
-		log.Printf("cleanActions err2: %v\n", err)
+		log.Printf("cleanTempActions err2: %v\n", err)
 	}
 	defer rows.Close()
 
@@ -418,7 +420,7 @@ func cleanTempActions() {
 		)
 
 		if err := rows.Scan(&id, &starttime, &duration); err != nil {
-			log.Printf("cleanActions err3: %v\n", err)
+			log.Printf("cleanTempActions err3: %v\n", err)
 		}
 
 		if time.Now().Unix() > starttime+duration {
@@ -426,27 +428,30 @@ func cleanTempActions() {
 		}
 	}
 	if err := rows.Err(); err != nil {
-		log.Printf("cleanActions err4: %v\n", err)
+		log.Printf("cleanTempActions err4: %v\n", err)
 	}
 }
 
 func getCurrentAction() int64 {
 	stmt := `
 		SELECT
-		  *
+		  id,
+		  unixtime,
+		  starttime,
+		  duration
 		FROM live.temperature_actions
 		WHERE inactive != 'Y'
 	`
 	db, err := sql.Open("postgres", getDbCred())
 	if err != nil {
-		log.Printf("cleanActions err1: %v\n", err)
+		log.Printf("getCurrentAction err1: %v\n", err)
 		return -1
 	}
 	defer db.Close()
 
 	rows, err := db.Query(stmt)
 	if err != nil {
-		log.Printf("cleanActions err2: %v\n", err)
+		log.Printf("getCurrentAction err2: %v\n", err)
 		return -1
 	}
 	defer rows.Close()
@@ -464,7 +469,7 @@ func getCurrentAction() int64 {
 		)
 
 		if err := rows.Scan(&id, &unixtime, &starttime, &duration); err != nil {
-			log.Printf("cleanActions err3: %v\n", err)
+			log.Printf("getCurrentAction err3: %v\n", err)
 			return -1
 		}
 
@@ -477,7 +482,7 @@ func getCurrentAction() int64 {
 		}
 	}
 	if err := rows.Err(); err != nil {
-		log.Printf("cleanActions err4: %v\n", err)
+		log.Printf("getCurrentAction err4: %v\n", err)
 		return -1
 	}
 	return lastId
@@ -486,7 +491,7 @@ func getCurrentAction() int64 {
 func getSetTemp(id int64) float64 {
 	stmt := `
 		SELECT
-		  *
+		  temperature
 		FROM live.temperature_actions
 	`
 	var temperature float64
