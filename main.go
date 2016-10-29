@@ -1,25 +1,14 @@
 package main
 
 import (
-	"database/sql"
 	"encoding/json"
 	"fmt"
 	"io"
 	"log"
-	"math/rand"
 	"net/http"
-
-	"bufio"
-	"os"
-	"regexp"
-	"strconv"
-	"strings"
-	"sync"
 	"time"
 
 	_ "github.com/lib/pq"
-	"github.com/stianeikeland/go-rpio"
-	"golang.org/x/crypto/bcrypt"
 )
 
 const (
@@ -29,8 +18,8 @@ const (
 )
 
 var (
-	STATUS    bool
-	MAXTEMP   float64 = -273
+	STATUS  bool
+	MAXTEMP float64 = -273
 )
 
 func main() {

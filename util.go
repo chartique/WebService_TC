@@ -1,19 +1,20 @@
 package main
 
 import (
-	"database/sql"
-	"golang.org/x/crypto/bcrypt"
-	"math/rand"
-	"time"
-	"sync"
-	"fmt"
-	"os"
 	"bufio"
+	"database/sql"
+	"fmt"
 	"io"
+	"math/rand"
+	"os"
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
+	"time"
+
 	"github.com/stianeikeland/go-rpio"
+	"golang.org/x/crypto/bcrypt"
 )
 
 func checkCredentials(user, pw string) (bool, error) {
@@ -162,7 +163,7 @@ func isValidKey(key string) (bool, error) {
 
 	var (
 		crdt string
-		dur int64
+		dur  int64
 	)
 	err = db.QueryRow(stmt, key).Scan(&crdt, &dur)
 	if err != nil {
