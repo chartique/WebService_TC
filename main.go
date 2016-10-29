@@ -59,9 +59,18 @@ func incomingTraffic(w http.ResponseWriter, r *http.Request) {
 			log.Printf("error 202: %v\n", err)
 		}
 
+		log.Println(
+			js["secretkey"].(string),
+			"",
+			time.Now().Unix(),
+			int64(js["starttime"].(float64)),
+			int64(js["duration"].(float64)),
+			js["temperature"].(float64),)
+
 		if isValidKey(js["secretkey"].(string)) {
 			data := make(map[string]string)
-			if insertPost(js["secretkey"].(string),
+			if insertPost(
+				js["secretkey"].(string),
 				"",
 				time.Now().Unix(),
 				int64(js["starttime"].(float64)),
@@ -79,6 +88,7 @@ func incomingTraffic(w http.ResponseWriter, r *http.Request) {
 
 			fmt.Fprint(w, string(res))
 		}
+		fmt.Fprint(w, `{"status": "failed"}`)
 	}
 }
 
