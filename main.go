@@ -505,7 +505,11 @@ func getSetTemp(id int64) float64 {
 	defer db.Close()
 
 	err = db.QueryRow(stmt, id).Scan(&temperature)
-	if err != nil {
+	switch err {
+	case "sql: no rows in result set":
+		log.Print("No current action.\n")
+		return -273
+	default:
 		log.Printf("getSetTemp err1: %v\n", err)
 		return -273
 	}
