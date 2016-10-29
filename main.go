@@ -37,12 +37,34 @@ func main() {
 	log.Println("Starting up service...")
 	go setTemp()
 
-	http.Handle("/api/v1", http.HandlerFunc(incomingTraffic))
+	http.Handle("/api/v1", http.HandlerFunc(settingTemp))
+	http.Handle("/api/v1/cancel", http.HandlerFunc(cancelTemp))
 	http.Handle("/api/auth", http.HandlerFunc(authenticate))
 	log.Println(http.ListenAndServe("0.0.0.0:80", nil))
 }
 
-func incomingTraffic(w http.ResponseWriter, r *http.Request) {
+func setTemp() {
+	for {
+		cleanTempActions()
+		id := getCurrentAction()
+		MAXTEMP = getSetTemp(id)
+
+		c, err := getTemp(DEVICE)
+		if err != nil {
+			log.Printf("setTemp error 1: %v", err)
+		}
+
+		if c <= MAXTEMP {
+			setStatus(ON)
+		} else {
+			setStatus(OFF)
+		}
+		log.Printf("Max Temp: %f, Current Temp: %f, Status: %s\n", MAXTEMP, c, STATUS)
+		time.Sleep(3500 * time.Millisecond)
+	}
+}
+
+func settingTemp(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "POST" {
 		// Read incoming bytes
 		inc := make([]byte, r.ContentLength)
@@ -130,6 +152,40 @@ func authenticate(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 }
+
+func cancelTemp(w http.ResponseWriter, r *http.Request) {
+	if r.Method == "POST" {
+		// Read incoming bytes
+		inc := make([]byte, r.ContentLength)
+		_, err := r.Body.Read(inc)
+		if err != nil && err != io.EOF {
+			log.Printf("error 301: %v\n", err)
+		}
+
+		js := make(map[string]interface{})
+
+		err = json.Unmarshal(inc, &js)
+		if err != nil {
+			log.Printf("error 302: %v\n", err)
+		}
+
+		log.Println(
+			js["secretkey"].(string),
+			js["cancel"].(bool),
+		)
+
+		if isValidKey(js["secretkey"].(string)) {
+			if js["cancel"].(bool) {
+				cancTemp(js["secretkey"].(string))
+			}
+			fmt.Fprint(w, `{"status": "ok"}`)
+		} else {
+			fmt.Fprint(w, `{"status": "failed"}`)
+		}
+		fmt.Fprint(w, `{"status": "failed"}`)
+	}
+}
+
 
 func checkCredentials(user, pw string) bool {
 	db, err := sql.Open("postgres", getDbCred())
@@ -265,27 +321,6 @@ func isValidKey(key string) bool {
 	}
 
 	return true
-}
-
-func setTemp() {
-	for {
-		cleanTempActions()
-		id := getCurrentAction()
-		MAXTEMP = getSetTemp(id)
-
-		c, err := getTemp(DEVICE)
-		if err != nil {
-			log.Printf("setTemp error 1: %v", err)
-		}
-
-		if c <= MAXTEMP {
-			setStatus(ON)
-		} else {
-			setStatus(OFF)
-		}
-		log.Printf("Max Temp: %f, Current Temp: %f, Status: %s\n", MAXTEMP, c, STATUS)
-		time.Sleep(3500 * time.Millisecond)
-	}
 }
 
 func getTemp(dev string) (float64, error) {
@@ -514,4 +549,22 @@ func getSetTemp(id int64) float64 {
 		return -273
 	}
 	return temperature
+}
+
+func cancTemp(key string) {
+	stmt := `
+		UPDATE live.temperature_actions
+		    SET inactive = 'Y'
+		    WHERE secretkey = $1
+	`
+	db, err := sql.Open("postgres", getDbCred())
+	if err != nil {
+		log.Printf("cancTemp err1: %v\n", err)
+	}
+	defer db.Close()
+
+	_, err = db.Exec(stmt, key)
+	if err != nil {
+		log.Printf("cancTemp err2: %v\n", err)
+	}
 }
