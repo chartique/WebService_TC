@@ -87,8 +87,9 @@ func incomingTraffic(w http.ResponseWriter, r *http.Request) {
 			}
 
 			fmt.Fprint(w, string(res))
+		} else {
+			fmt.Fprint(w, `{"status": "failed"}`)
 		}
-		fmt.Fprint(w, `{"status": "failed"}`)
 	}
 }
 
@@ -160,20 +161,36 @@ func generateKey() string {
 }
 
 func insertKey(user, key string) {
+	stmt := `
+		INSERT INTO live.user_key (user_id, secretkey, duration) VALUES ((SELECT id
+									  FROM live.user
+									  WHERE username = $1), $2, $3)
+	`
+
 	db, err := sql.Open("postgres", getDbCred())
 	if err != nil {
 		log.Printf("couldn't establish connection: %v\n", err)
 	}
 	defer db.Close()
 
-	_, err = db.Exec("INSERT INTO live.user_key(user_id, secretkey, duration) VALUES((SELECT id FROM live.user WHERE username=$1), $2, $3)",
-		user, key, int64(time.Duration(24 * time.Hour)))
+	_, err = db.Exec(stmt, user, key, int64(time.Duration(24 * time.Hour).Seconds()))
 	if err != nil {
 		fmt.Printf("couldn't execute command: %v\n", err)
 	}
 }
 
 func userHasValidKey(user string) bool {
+	stmt := `
+		SELECT
+		  create_dt,
+		  duration
+		FROM live.user_key
+		WHERE user_id = (SELECT id
+				 FROM live.user
+				 WHERE username = $1)
+		ORDER BY create_dt DESC
+	`
+
 	db, err := sql.Open("postgres", getDbCred())
 	if err != nil {
 		log.Printf("couldn't establish connection: %v\n", err)
@@ -182,7 +199,7 @@ func userHasValidKey(user string) bool {
 
 	var crdt string
 	var dur int64
-	err = db.QueryRow("SELECT create_dt, duration FROM live.user_key WHERE user_id=(SELECT id from live.user WHERE username=$1) ORDER BY create_dt DESC", user).Scan(&crdt, &dur)
+	err = db.QueryRow(stmt, user).Scan(&crdt, &dur)
 	if err != nil {
 		return false
 	}
@@ -191,14 +208,20 @@ func userHasValidKey(user string) bool {
 	if err != nil {
 		return false
 	}
-	if time.Now().UnixNano() - t2.UnixNano() > int64(time.Duration(24 * time.Hour)) {
+	if time.Now().Unix() - t2.Unix() > dur {
 		return false
 	}
-
 	return true
 }
 
 func extractValidKey(user string) string {
+	stmt := `
+		SELECT secretkey
+		FROM live.user_key
+		WHERE user_id = (SELECT id
+				 FROM live.user
+				 WHERE username = $1)
+	`
 	db, err := sql.Open("postgres", getDbCred())
 	if err != nil {
 		log.Printf("couldn't establish connection: %v\n", err)
@@ -206,7 +229,7 @@ func extractValidKey(user string) string {
 	defer db.Close()
 
 	var key string
-	err = db.QueryRow("SELECT secretkey FROM live.user_key WHERE user_id=(SELECT id from live.user WHERE username=$1)", user).Scan(&key)
+	err = db.QueryRow(stmt, user).Scan(&key)
 	if err != nil {
 		log.Printf("couldn't establish connection: %v\n", err)
 	}
@@ -214,6 +237,13 @@ func extractValidKey(user string) string {
 }
 
 func isValidKey(key string) bool {
+	stmt := `
+		SELECT
+		  create_dt,
+		  duration
+		FROM live.user_key
+		WHERE secretkey = $1
+	`
 	db, err := sql.Open("postgres", getDbCred())
 	if err != nil {
 		log.Printf("couldn't establish connection: %v\n", err)
@@ -222,7 +252,7 @@ func isValidKey(key string) bool {
 
 	var crdt string
 	var dur int64
-	err = db.QueryRow("SELECT create_dt, duration FROM live.user_key WHERE secretkey=$1", key).Scan(&crdt, &dur)
+	err = db.QueryRow(stmt, key).Scan(&crdt, &dur)
 	if err != nil {
 		return false
 	}
@@ -231,7 +261,7 @@ func isValidKey(key string) bool {
 	if err != nil {
 		return false
 	}
-	if time.Now().UnixNano() - t2.UnixNano() > int64(time.Duration(24 * time.Hour)) {
+	if time.Now().Unix() - t2.Unix() > dur {
 		return false
 	}
 
