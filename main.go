@@ -271,7 +271,6 @@ func setTemp() {
 	for {
 		cleanTempActions()
 		id := getCurrentAction()
-		fmt.Printf("id: %d\n", id)
 		MAXTEMP = getSetTemp(id)
 
 		c, err := getTemp(DEVICE)
@@ -475,6 +474,7 @@ func getCurrentAction() int64 {
 		}
 
 		t := time.Now().Unix()
+		fmt.Printf("Stime: %d\nDur: %d\nNow: %d\n", starttime, duration, t)
 		if t < starttime+duration && t >= starttime {
 			if unixtime > lastUpd {
 				lastUpd = unixtime
