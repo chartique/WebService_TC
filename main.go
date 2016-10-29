@@ -271,23 +271,22 @@ func isValidKey(key string) bool {
 
 func setTemp() {
 	for {
-		t := time.Now().Unix()
-		if t >= STARTTIME && t <= ENDTIME {
-			c, err := getTemp(DEVICE)
-			if err != nil {
-				log.Printf("setTemp error 1: %v", err)
-			}
-			if c <= MAXTEMP {
-				setStatus(ON)
-			} else {
-				setStatus(OFF)
-			}
-			log.Printf("Max Temp: %f, Current Temp: %f", MAXTEMP, c)
-			time.Sleep(1 * time.Second)
+		cleanTempActions()
+		id := getCurrentAction()
+		MAXTEMP = getSetTemp(id)
+
+		c, err := getTemp(DEVICE)
+		if err != nil {
+			log.Printf("setTemp error 1: %v", err)
+		}
+
+		if c <= MAXTEMP {
+			setStatus(ON)
 		} else {
 			setStatus(OFF)
-			time.Sleep(1 * time.Second)
 		}
+		log.Printf("Max Temp: %f, Current Temp: %f", MAXTEMP, c)
+		time.Sleep(4 * time.Second)
 	}
 }
 
@@ -387,4 +386,124 @@ func insertPost(key, act string, now, start, dur int64, temp float64) bool {
 		return false
 	}
 	return true
+}
+
+func cleanTempActions() {
+	stmt := `
+		SELECT
+		  *
+		FROM live.temperature_actions
+	`
+
+	upd := `
+		UPDATE live.temperature_actions
+		    SET inactive = 'Y'
+		    WHERE id = $1
+	`
+	db, err := sql.Open("postgres", getDbCred())
+	if err != nil {
+		log.Printf("cleanActions err1: %v\n", err)
+	}
+	defer db.Close()
+
+	rows, err := db.Query(stmt)
+	if err != nil {
+		log.Printf("cleanActions err2: %v\n", err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var (
+			id        int64
+			starttime int64
+			duration  int64
+		)
+
+		if err := rows.Scan(&id, &starttime, &duration); err != nil {
+			log.Printf("cleanActions err3: %v\n", err)
+		}
+
+		if time.Now().Unix() > starttime+duration {
+			db.Exec(upd, id)
+		}
+	}
+	if err := rows.Err(); err != nil {
+		log.Printf("cleanActions err4: %v\n", err)
+	}
+}
+
+func getCurrentAction() int {
+	stmt := `
+		SELECT
+		  *
+		FROM live.temperature_actions
+		WHERE inactive != 'Y'
+	`
+	db, err := sql.Open("postgres", getDbCred())
+	if err != nil {
+		log.Printf("cleanActions err1: %v\n", err)
+		return nil
+	}
+	defer db.Close()
+
+	rows, err := db.Query(stmt)
+	if err != nil {
+		log.Printf("cleanActions err2: %v\n", err)
+		return nil
+	}
+	defer rows.Close()
+
+	var (
+		lastUpd int64
+		lastId  int64
+	)
+	for rows.Next() {
+		var (
+			id        int64
+			unixtime  int64
+			starttime int64
+			duration  int64
+		)
+
+		if err := rows.Scan(&id, &unixtime, &starttime, &duration); err != nil {
+			log.Printf("cleanActions err3: %v\n", err)
+			return nil
+		}
+
+		t := time.Now().Unix()
+		if t < starttime+duration && t >= starttime {
+			if unixtime > lastUpd {
+				lastUpd = unixtime
+				lastId = id
+			}
+		}
+	}
+	if err := rows.Err(); err != nil {
+		log.Printf("cleanActions err4: %v\n", err)
+		return nil
+	}
+	return lastId
+}
+
+func getSetTemp(id int) float64 {
+	stmt := `
+		SELECT
+		  *
+		FROM live.temperature_actions
+	`
+	var temperature float64
+
+	db, err := sql.Open("postgres", getDbCred())
+	if err != nil {
+		log.Printf("getSetTemp err1: %v\n", err)
+		return nil
+	}
+	defer db.Close()
+
+	err = db.QueryRow(stmt, id).Scan(&temperature)
+	if err != nil {
+		log.Printf("getSetTemp err1: %v\n", err)
+		return nil
+	}
+	return temperature
 }
