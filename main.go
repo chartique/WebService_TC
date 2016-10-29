@@ -493,6 +493,7 @@ func getSetTemp(id int64) float64 {
 		SELECT
 		  temperature
 		FROM live.temperature_actions
+		WHERE id=$1
 	`
 	var temperature float64
 
