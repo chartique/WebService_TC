@@ -31,8 +31,6 @@ const (
 var (
 	STATUS    bool
 	MAXTEMP   float64 = -273
-	STARTTIME int64
-	ENDTIME   int64
 )
 
 func main() {
@@ -432,7 +430,7 @@ func cleanTempActions() {
 	}
 }
 
-func getCurrentAction() int {
+func getCurrentAction() int64 {
 	stmt := `
 		SELECT
 		  *
@@ -442,14 +440,14 @@ func getCurrentAction() int {
 	db, err := sql.Open("postgres", getDbCred())
 	if err != nil {
 		log.Printf("cleanActions err1: %v\n", err)
-		return nil
+		return -1
 	}
 	defer db.Close()
 
 	rows, err := db.Query(stmt)
 	if err != nil {
 		log.Printf("cleanActions err2: %v\n", err)
-		return nil
+		return -1
 	}
 	defer rows.Close()
 
@@ -467,7 +465,7 @@ func getCurrentAction() int {
 
 		if err := rows.Scan(&id, &unixtime, &starttime, &duration); err != nil {
 			log.Printf("cleanActions err3: %v\n", err)
-			return nil
+			return -1
 		}
 
 		t := time.Now().Unix()
@@ -480,12 +478,12 @@ func getCurrentAction() int {
 	}
 	if err := rows.Err(); err != nil {
 		log.Printf("cleanActions err4: %v\n", err)
-		return nil
+		return -1
 	}
 	return lastId
 }
 
-func getSetTemp(id int) float64 {
+func getSetTemp(id int64) float64 {
 	stmt := `
 		SELECT
 		  *
@@ -496,14 +494,14 @@ func getSetTemp(id int) float64 {
 	db, err := sql.Open("postgres", getDbCred())
 	if err != nil {
 		log.Printf("getSetTemp err1: %v\n", err)
-		return nil
+		return -273
 	}
 	defer db.Close()
 
 	err = db.QueryRow(stmt, id).Scan(&temperature)
 	if err != nil {
 		log.Printf("getSetTemp err1: %v\n", err)
-		return nil
+		return -273
 	}
 	return temperature
 }
