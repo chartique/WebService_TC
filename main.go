@@ -498,20 +498,20 @@ func getSetTemp(id int64) float64 {
 	`
 	var temperature float64
 
+	if id == 0 {
+		return -273
+	}
+
 	db, err := sql.Open("postgres", getDbCred())
 	if err != nil {
 		log.Printf("getSetTemp err1: %v\n", err)
 		return -273
 	}
 	defer db.Close()
-
 	err = db.QueryRow(stmt, id).Scan(&temperature)
-	switch err {
-	case errors.New("sql: no rows in result set"):
-		log.Print("No current action.\n")
-		return -273
-	default:
-		log.Printf("getSetTemp err1: %v\n", err)
+
+	if err != nil {
+		log.Printf("getSetTemp err2: %v\n", err)
 		return -273
 	}
 	return temperature
