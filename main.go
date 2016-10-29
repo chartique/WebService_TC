@@ -283,7 +283,7 @@ func setTemp() {
 		} else {
 			setStatus(OFF)
 		}
-		log.Printf("Max Temp: %f, Current Temp: %f", MAXTEMP, c)
+		log.Printf("Max Temp: %f, Current Temp: %f, Status: %s\n", MAXTEMP, c, STATUS)
 		time.Sleep(3500 * time.Millisecond)
 	}
 }
@@ -475,10 +475,7 @@ func getCurrentAction() int64 {
 
 		t := time.Now().Unix()
 		if t < starttime+duration && t >= starttime {
-			fmt.Println("h1")
 			if unixtime > lastUpd {
-				fmt.Println("h2")
-				fmt.Println(id)
 				lastUpd = unixtime
 				lastId = id
 			}
