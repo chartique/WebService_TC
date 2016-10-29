@@ -20,6 +20,7 @@ import (
 	_ "github.com/lib/pq"
 	"github.com/stianeikeland/go-rpio"
 	"golang.org/x/crypto/bcrypt"
+	"errors"
 )
 
 const (
@@ -506,7 +507,7 @@ func getSetTemp(id int64) float64 {
 
 	err = db.QueryRow(stmt, id).Scan(&temperature)
 	switch err {
-	case "sql: no rows in result set":
+	case errors.New("sql: no rows in result set"):
 		log.Print("No current action.\n")
 		return -273
 	default:
