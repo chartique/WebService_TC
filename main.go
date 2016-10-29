@@ -20,7 +20,6 @@ import (
 	_ "github.com/lib/pq"
 	"github.com/stianeikeland/go-rpio"
 	"golang.org/x/crypto/bcrypt"
-	"errors"
 )
 
 const (
