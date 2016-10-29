@@ -45,22 +45,34 @@ func main() {
 
 func setTemp() {
 	for {
-		cleanTempActions()
-		id := getCurrentAction()
-		MAXTEMP = getSetTemp(id)
+		err := cleanTempActions()
+		if err != nil {
+			log.Printf("error 101: %v", err)
+		}
+		id, err := getCurrentAction()
+		if err != nil {
+			log.Printf("error 102: %v", err)
+		}
+		MAXTEMP, err = getSetTemp(id)
+		if err != nil {
+			log.Printf("error 103: %v", err)
+		}
 
 		c, err := getTemp(DEVICE)
 		if err != nil {
-			log.Printf("setTemp error 1: %v", err)
+			log.Printf("error 104: %v", err)
 		}
 
 		if c <= MAXTEMP {
-			setStatus(ON)
+			if err := setStatus(ON); err != nil {
+				log.Printf("error 105: %v", err)
+			}
 		} else {
-			setStatus(OFF)
+			if err := setStatus(OFF); err != nil {
+				log.Printf("error 106: %v", err)
+			}
 		}
-		log.Printf("Max Temp: %f, Current Temp: %f, Status: %s\n", MAXTEMP, c, STATUS)
-		time.Sleep(3500 * time.Millisecond)
+		time.Sleep(3400 * time.Millisecond)
 	}
 }
 
@@ -88,23 +100,34 @@ func settingTemp(w http.ResponseWriter, r *http.Request) {
 			int64(js["duration"].(float64)),
 			js["temperature"].(float64))
 
-		if isValidKey(js["secretkey"].(string)) {
+		okKey, err := isValidKey(js["secretkey"].(string))
+		if err != nil {
+			log.Printf("error 203: %v\n", err)
+		}
+
+		if okKey {
 			data := make(map[string]string)
-			if insertPost(
+
+			ip, err := insertPost(
 				js["secretkey"].(string),
 				"",
 				time.Now().Unix(),
 				int64(js["starttime"].(float64)),
 				int64(js["duration"].(float64)),
 				js["temperature"].(float64),
-			) {
+			)
+			if err != nil {
+				log.Printf("error 204: %v\n", err)
+			}
+
+			if ip {
 				data = map[string]string{"status": "ok"}
 			} else {
 				data = map[string]string{"status": "failed"}
 			}
 			res, err := json.Marshal(data)
 			if err != nil {
-				log.Printf("error 104: %v\n", err)
+				log.Printf("error 205: %v\n", err)
 			}
 
 			fmt.Fprint(w, string(res))
@@ -120,32 +143,49 @@ func authenticate(w http.ResponseWriter, r *http.Request) {
 		inc := make([]byte, r.ContentLength)
 		_, err := r.Body.Read(inc)
 		if err != nil && err != io.EOF {
-			log.Printf("error 101: %v\n", err)
+			log.Printf("error 301: %v\n", err)
 		}
 
 		js := make(map[string]interface{})
 
 		err = json.Unmarshal(inc, &js)
 		if err != nil {
-			log.Printf("error 102: %v\n", err)
+			log.Printf("error 302: %v\n", err)
 		}
 
-		if checkCredentials(js["username"].(string), js["password"].(string)) {
-			if userHasValidKey(js["username"].(string)) {
-				data := map[string]string{"SECRETKEY": extractValidKey(js["username"].(string))}
-				res, err := json.Marshal(data)
+		chkOk, err := checkCredentials(js["username"].(string), js["password"].(string))
+		if err != nil {
+			log.Printf("error 303: %v\n", err)
+		}
+
+		if chkOk {
+			okKey, err := userHasValidKey(js["username"].(string))
+			if err != nil {
+				log.Printf("error 304: %v\n", err)
+			}
+
+			if okKey {
+				key, err := extractValidKey(js["username"].(string))
 				if err != nil {
-					log.Printf("error 103: %v\n", err)
+					log.Printf("error 305: %v\n", err)
 				}
-				fmt.Fprint(w, string(res))
-			} else {
-				key := generateKey()
-				insertKey(js["username"].(string), key)
 
 				data := map[string]string{"SECRETKEY": key}
 				res, err := json.Marshal(data)
 				if err != nil {
-					log.Printf("error 104: %v\n", err)
+					log.Printf("error 306: %v\n", err)
+				}
+				fmt.Fprint(w, string(res))
+			} else {
+				key := generateKey()
+				if err := insertKey(js["username"].(string), key); err != nil {
+					log.Printf("error 307: %v\n", err)
+				}
+
+				data := map[string]string{"SECRETKEY": key}
+				res, err := json.Marshal(data)
+				if err != nil {
+					log.Printf("error 308: %v\n", err)
 				}
 				fmt.Fprint(w, string(res))
 			}
@@ -159,14 +199,14 @@ func cancelTemp(w http.ResponseWriter, r *http.Request) {
 		inc := make([]byte, r.ContentLength)
 		_, err := r.Body.Read(inc)
 		if err != nil && err != io.EOF {
-			log.Printf("error 301: %v\n", err)
+			log.Printf("error 401: %v\n", err)
 		}
 
 		js := make(map[string]interface{})
 
 		err = json.Unmarshal(inc, &js)
 		if err != nil {
-			log.Printf("error 302: %v\n", err)
+			log.Printf("error 402: %v\n", err)
 		}
 
 		log.Println(
@@ -174,9 +214,16 @@ func cancelTemp(w http.ResponseWriter, r *http.Request) {
 			js["cancel"].(bool),
 		)
 
-		if isValidKey(js["secretkey"].(string)) {
+		okKey, err := isValidKey(js["secretkey"].(string))
+		if err != nil {
+			log.Printf("error 403: %v\n", err)
+		}
+
+		if okKey {
 			if js["cancel"].(bool) {
-				cancTemp(js["secretkey"].(string))
+				if err := cancTemp(js["secretkey"].(string)); err != nil {
+					log.Printf("error 404: %v\n", err)
+				}
 			}
 			fmt.Fprint(w, `{"status": "ok"}`)
 		} else {
@@ -187,21 +234,29 @@ func cancelTemp(w http.ResponseWriter, r *http.Request) {
 }
 
 
-func checkCredentials(user, pw string) bool {
-	db, err := sql.Open("postgres", getDbCred())
+func checkCredentials(user, pw string) (bool, error) {
+	stmt := `
+		SELECT password
+		FROM live.user
+		WHERE username = $1
+	`
+	cred, err := getDbCred()
 	if err != nil {
-		log.Printf("couldn't establish connection: %v\n", err)
+		return false, err
+	}
+	db, err := sql.Open("postgres", cred)
+	if err != nil {
+		return false, err
 	}
 	defer db.Close()
 
 	var pw2 string
-	db.QueryRow("SELECT password FROM live.user WHERE username=$1", user).Scan(&pw2)
+	db.QueryRow(stmt, user).Scan(&pw2)
 
 	if err := bcrypt.CompareHashAndPassword([]byte(pw2), []byte(pw)); err != nil {
-		log.Printf("error 201: %v\n", err)
-		return false
+		return false, err
 	}
-	return true
+	return true, nil
 }
 
 func generateKey() string {
@@ -215,26 +270,30 @@ func generateKey() string {
 	return string(r)
 }
 
-func insertKey(user, key string) {
+func insertKey(user, key string) error {
 	stmt := `
 		INSERT INTO live.user_key (user_id, secretkey, duration) VALUES ((SELECT id
 									  FROM live.user
 									  WHERE username = $1), $2, $3)
 	`
-
-	db, err := sql.Open("postgres", getDbCred())
+	cred, err := getDbCred()
 	if err != nil {
-		log.Printf("couldn't establish connection: %v\n", err)
+		return err
+	}
+	db, err := sql.Open("postgres", cred)
+	if err != nil {
+		return err
 	}
 	defer db.Close()
 
 	_, err = db.Exec(stmt, user, key, int64(time.Duration(24*time.Hour).Seconds()))
 	if err != nil {
-		fmt.Printf("couldn't execute command: %v\n", err)
+		return err
 	}
+	return nil
 }
 
-func userHasValidKey(user string) bool {
+func userHasValidKey(user string) (bool, error) {
 	stmt := `
 		SELECT
 		  create_dt,
@@ -246,9 +305,13 @@ func userHasValidKey(user string) bool {
 		ORDER BY create_dt DESC
 	`
 
-	db, err := sql.Open("postgres", getDbCred())
+	cred, err := getDbCred()
 	if err != nil {
-		log.Printf("couldn't establish connection: %v\n", err)
+		return false, err
+	}
+	db, err := sql.Open("postgres", cred)
+	if err != nil {
+		return false, err
 	}
 	defer db.Close()
 
@@ -256,20 +319,20 @@ func userHasValidKey(user string) bool {
 	var dur int64
 	err = db.QueryRow(stmt, user).Scan(&crdt, &dur)
 	if err != nil {
-		return false
+		return false, err
 	}
 
 	t2, err := time.Parse("2006-01-02T15:04:05.999Z", crdt)
 	if err != nil {
-		return false
+		return false, err
 	}
 	if time.Now().Unix()-t2.Unix() > dur {
-		return false
+		return false, err
 	}
-	return true
+	return true, nil
 }
 
-func extractValidKey(user string) string {
+func extractValidKey(user string) (string, error) {
 	stmt := `
 		SELECT secretkey
 		FROM live.user_key
@@ -277,21 +340,26 @@ func extractValidKey(user string) string {
 				 FROM live.user
 				 WHERE username = $1)
 	`
-	db, err := sql.Open("postgres", getDbCred())
+
+	cred, err := getDbCred()
 	if err != nil {
-		log.Printf("couldn't establish connection: %v\n", err)
+		return "", err
+	}
+	db, err := sql.Open("postgres", cred)
+	if err != nil {
+		return "", err
 	}
 	defer db.Close()
 
 	var key string
 	err = db.QueryRow(stmt, user).Scan(&key)
 	if err != nil {
-		log.Printf("couldn't establish connection: %v\n", err)
+		return "", err
 	}
-	return key
+	return key, nil
 }
 
-func isValidKey(key string) bool {
+func isValidKey(key string) (bool, error) {
 	stmt := `
 		SELECT
 		  create_dt,
@@ -299,28 +367,34 @@ func isValidKey(key string) bool {
 		FROM live.user_key
 		WHERE secretkey = $1
 	`
-	db, err := sql.Open("postgres", getDbCred())
+
+	cred, err := getDbCred()
 	if err != nil {
-		log.Printf("couldn't establish connection: %v\n", err)
+		return false, err
+	}
+	db, err := sql.Open("postgres", cred)
+	if err != nil {
+		return false, err
 	}
 	defer db.Close()
 
-	var crdt string
-	var dur int64
+	var (
+		crdt string
+		dur int64
+	)
 	err = db.QueryRow(stmt, key).Scan(&crdt, &dur)
 	if err != nil {
-		return false
+		return false, err
 	}
 
 	t2, err := time.Parse("2006-01-02T15:04:05.999Z", crdt)
 	if err != nil {
-		return false
+		return false, err
 	}
 	if time.Now().Unix()-t2.Unix() > dur {
-		return false
+		return false, err
 	}
-
-	return true
+	return true, nil
 }
 
 func getTemp(dev string) (float64, error) {
@@ -348,10 +422,10 @@ func getTemp(dev string) (float64, error) {
 	return float64(t) / 1000, nil
 }
 
-func setStatus(s bool) {
+func setStatus(s bool) error {
 	err := rpio.Open()
 	if err != nil {
-		log.Printf("handleSwitch err1: %v\n", err)
+		return err
 	}
 	defer rpio.Close()
 
@@ -370,28 +444,29 @@ func setStatus(s bool) {
 	} else {
 		STATUS = OFF
 	}
+	return nil
 }
 
-func getDbCred() string {
+func getDbCred() (string, error) {
 	mtx := &sync.Mutex{}
 	f := "/var/pglogin"
 	mtx.Lock()
 	defer mtx.Unlock()
 	fio, err := os.Open(f)
 	if err != nil {
-		log.Printf("dbcred 1: %v\n", err)
+		return "", err
 	}
 	defer fio.Close()
 	bio := bufio.NewReader(fio)
 
 	bts, err := bio.Peek(1000)
 	if err != nil && err != io.EOF {
-		log.Printf("dbcred 2: %v\n", err)
+		return "", err
 	}
-	return string(bts)
+	return string(bts), nil
 }
 
-func insertPost(key, act string, now, start, dur int64, temp float64) bool {
+func insertPost(key, act string, now, start, dur int64, temp float64) (bool, error) {
 	stmt := `
 		INSERT INTO live.temperature_actions (
 		  secretkey,
@@ -406,22 +481,24 @@ func insertPost(key, act string, now, start, dur int64, temp float64) bool {
 		)
 	`
 
-	db, err := sql.Open("postgres", getDbCred())
+	cred, err := getDbCred()
 	if err != nil {
-		log.Printf("insertPost err1: %v\n", err)
-		return false
+		return false, err
+	}
+	db, err := sql.Open("postgres", cred)
+	if err != nil {
+		return false, err
 	}
 	defer db.Close()
 
 	_, err = db.Exec(stmt, key, temp, now, start, dur, act)
 	if err != nil {
-		fmt.Printf("insertPost err2: %v\n", err)
-		return false
+		return false, err
 	}
-	return true
+	return true, nil
 }
 
-func cleanTempActions() {
+func cleanTempActions() error {
 	stmt := `
 		SELECT
 		  id,
@@ -435,15 +512,20 @@ func cleanTempActions() {
 		    SET inactive = 'Y'
 		    WHERE id = $1
 	`
-	db, err := sql.Open("postgres", getDbCred())
+
+	cred, err := getDbCred()
 	if err != nil {
-		log.Printf("cleanTempActions err1: %v\n", err)
+		return false, err
+	}
+	db, err := sql.Open("postgres", cred)
+	if err != nil {
+		return false, err
 	}
 	defer db.Close()
 
 	rows, err := db.Query(stmt)
 	if err != nil {
-		log.Printf("cleanTempActions err2: %v\n", err)
+		return err
 	}
 	defer rows.Close()
 
@@ -455,19 +537,23 @@ func cleanTempActions() {
 		)
 
 		if err := rows.Scan(&id, &starttime, &duration); err != nil {
-			log.Printf("cleanTempActions err3: %v\n", err)
+			return err
 		}
 
 		if time.Now().Unix() > starttime+duration {
-			db.Exec(upd, id)
+			_, err = db.Exec(upd, id)
+			if err != nil {
+				return err
+			}
 		}
 	}
 	if err := rows.Err(); err != nil {
-		log.Printf("cleanTempActions err4: %v\n", err)
+		return err
 	}
+	return nil
 }
 
-func getCurrentAction() int64 {
+func getCurrentAction() (int64, error) {
 	stmt := `
 		SELECT
 		  id,
@@ -477,17 +563,20 @@ func getCurrentAction() int64 {
 		FROM live.temperature_actions
 		WHERE inactive != 'Y'
 	`
-	db, err := sql.Open("postgres", getDbCred())
+
+	cred, err := getDbCred()
 	if err != nil {
-		log.Printf("getCurrentAction err1: %v\n", err)
-		return -1
+		return -1, err
+	}
+	db, err := sql.Open("postgres", cred)
+	if err != nil {
+		return -1, err
 	}
 	defer db.Close()
 
 	rows, err := db.Query(stmt)
 	if err != nil {
-		log.Printf("getCurrentAction err2: %v\n", err)
-		return -1
+		return -1, err
 	}
 	defer rows.Close()
 
@@ -504,8 +593,7 @@ func getCurrentAction() int64 {
 		)
 
 		if err := rows.Scan(&id, &unixtime, &starttime, &duration); err != nil {
-			log.Printf("getCurrentAction err3: %v\n", err)
-			return -1
+			return -1, err
 		}
 
 		t := time.Now().Unix()
@@ -517,13 +605,12 @@ func getCurrentAction() int64 {
 		}
 	}
 	if err := rows.Err(); err != nil {
-		log.Printf("getCurrentAction err4: %v\n", err)
-		return -1
+		return -1, err
 	}
-	return lastId
+	return lastId, nil
 }
 
-func getSetTemp(id int64) float64 {
+func getSetTemp(id int64) (float64, error) {
 	stmt := `
 		SELECT
 		  temperature
@@ -533,25 +620,23 @@ func getSetTemp(id int64) float64 {
 	var temperature float64
 
 	if id == 0 {
-		return -273
+		return -273, nil
 	}
 
 	db, err := sql.Open("postgres", getDbCred())
 	if err != nil {
-		log.Printf("getSetTemp err1: %v\n", err)
-		return -273
+		return -273, err
 	}
 	defer db.Close()
 	err = db.QueryRow(stmt, id).Scan(&temperature)
 
 	if err != nil {
-		log.Printf("getSetTemp err2: %v\n", err)
-		return -273
+		return -273, err
 	}
-	return temperature
+	return temperature, nil
 }
 
-func cancTemp(key string) {
+func cancTemp(key string) error {
 	stmt := `
 		UPDATE live.temperature_actions
 		    SET inactive = 'Y'
@@ -559,12 +644,13 @@ func cancTemp(key string) {
 	`
 	db, err := sql.Open("postgres", getDbCred())
 	if err != nil {
-		log.Printf("cancTemp err1: %v\n", err)
+		return err
 	}
 	defer db.Close()
 
 	_, err = db.Exec(stmt, key)
 	if err != nil {
-		log.Printf("cancTemp err2: %v\n", err)
+		return err
 	}
+	return nil
 }
