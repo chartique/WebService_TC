@@ -476,7 +476,10 @@ func getCurrentAction() int64 {
 		t := time.Now().Unix()
 		fmt.Printf("Stime: %d\nDur: %d\nNow: %d\n", starttime, duration, t)
 		if t < starttime+duration && t >= starttime {
+			fmt.Println("h1")
 			if unixtime > lastUpd {
+				fmt.Println("h2")
+				fmt.Println(id)
 				lastUpd = unixtime
 				lastId = id
 			}
