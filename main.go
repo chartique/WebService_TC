@@ -515,11 +515,11 @@ func cleanTempActions() error {
 
 	cred, err := getDbCred()
 	if err != nil {
-		return false, err
+		return err
 	}
 	db, err := sql.Open("postgres", cred)
 	if err != nil {
-		return false, err
+		return err
 	}
 	defer db.Close()
 
@@ -642,7 +642,12 @@ func cancTemp(key string) error {
 		    SET inactive = 'Y'
 		    WHERE secretkey = $1
 	`
-	db, err := sql.Open("postgres", getDbCred())
+
+	cred, err := getDbCred()
+	if err != nil {
+		return err
+	}
+	db, err := sql.Open("postgres", cred)
 	if err != nil {
 		return err
 	}
