@@ -1,37 +1,38 @@
 package main
 
 import (
-	"log"
-	"net/http"
-	"io"
+	"database/sql"
 	"encoding/json"
 	"fmt"
-	"database/sql"
+	"io"
+	"log"
 	"math/rand"
+	"net/http"
 
-	_ "github.com/lib/pq"
-	"golang.org/x/crypto/bcrypt"
-	"time"
-	"strings"
+	"bufio"
+	"os"
 	"regexp"
 	"strconv"
-	"github.com/stianeikeland/go-rpio"
+	"strings"
 	"sync"
-	"os"
-	"bufio"
+	"time"
+
+	_ "github.com/lib/pq"
+	"github.com/stianeikeland/go-rpio"
+	"golang.org/x/crypto/bcrypt"
 )
 
 const (
 	DEVICE string = "28-0316458ce4ff"
-	ON bool = true
-	OFF bool = false
+	ON     bool   = true
+	OFF    bool   = false
 )
 
 var (
-	STATUS bool
-	MAXTEMP float64 = -273
+	STATUS    bool
+	MAXTEMP   float64 = -273
 	STARTTIME int64
-	ENDTIME int64
+	ENDTIME   int64
 )
 
 func main() {
@@ -65,7 +66,7 @@ func incomingTraffic(w http.ResponseWriter, r *http.Request) {
 			time.Now().Unix(),
 			int64(js["starttime"].(float64)),
 			int64(js["duration"].(float64)),
-			js["temperature"].(float64),)
+			js["temperature"].(float64))
 
 		if isValidKey(js["secretkey"].(string)) {
 			data := make(map[string]string)
@@ -173,7 +174,7 @@ func insertKey(user, key string) {
 	}
 	defer db.Close()
 
-	_, err = db.Exec(stmt, user, key, int64(time.Duration(24 * time.Hour).Seconds()))
+	_, err = db.Exec(stmt, user, key, int64(time.Duration(24*time.Hour).Seconds()))
 	if err != nil {
 		fmt.Printf("couldn't execute command: %v\n", err)
 	}
@@ -208,7 +209,7 @@ func userHasValidKey(user string) bool {
 	if err != nil {
 		return false
 	}
-	if time.Now().Unix() - t2.Unix() > dur {
+	if time.Now().Unix()-t2.Unix() > dur {
 		return false
 	}
 	return true
@@ -261,7 +262,7 @@ func isValidKey(key string) bool {
 	if err != nil {
 		return false
 	}
-	if time.Now().Unix() - t2.Unix() > dur {
+	if time.Now().Unix()-t2.Unix() > dur {
 		return false
 	}
 
