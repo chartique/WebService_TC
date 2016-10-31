@@ -433,17 +433,18 @@ func setStatus(s bool) error {
 		pin.Output()
 		pin.Toggle()
 		STATUS = OFF
+		log.Printf("Status set to: %t", STATUS)
 	} else if !STATUS && s == ON {
 		pin := rpio.Pin(17)
 		pin.Output()
 		pin.Toggle()
 		STATUS = ON
+		log.Printf("Status set to: %t", STATUS)
 	} else if STATUS && s == ON {
 		STATUS = ON
 	} else {
 		STATUS = OFF
 	}
-	log.Printf("Status set to: %t", STATUS)
 	return nil
 }
 
