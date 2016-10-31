@@ -231,6 +231,8 @@ func cancelTemp(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 }
+
+
 func checkCredentials(user, pw string) (bool, error) {
 	stmt := `
 		SELECT password
@@ -441,6 +443,7 @@ func setStatus(s bool) error {
 	} else {
 		STATUS = OFF
 	}
+	log.Printf("Status set to: %t", STATUS)
 	return nil
 }
 
