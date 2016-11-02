@@ -34,6 +34,7 @@ var (
 )
 
 func main() {
+	defer setStatus(OFF)
 	log.Println("Starting up service...")
 	go setTemp()
 
@@ -77,6 +78,8 @@ func setTemp() {
 }
 
 func settingTemp(w http.ResponseWriter, r *http.Request) {
+	log.Printf("auth: %s", r.Header.Get("auth"))
+
 	if strings.ToUpper(r.Method) == "POST" {
 		// Read incoming bytes
 		inc := make([]byte, r.ContentLength)
@@ -108,7 +111,7 @@ func settingTemp(w http.ResponseWriter, r *http.Request) {
 			data := make(map[string]string)
 
 			ip, err := insertPost(
-				js["secretkey"].(string),
+				r.Header.Get("auth"),
 				"",
 				time.Now().Unix(),
 				int64(js["starttime"].(float64)),
