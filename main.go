@@ -139,34 +139,20 @@ func settingTemp(w http.ResponseWriter, r *http.Request) {
 func authenticate(w http.ResponseWriter, r *http.Request) {
 	log.Printf("user: %s", r.Header.Get("user"))
 	log.Printf("pass: %s", r.Header.Get("pass"))
-	if strings.ToUpper(r.Method) == "POST" {
-		// Read incoming bytes
-		inc := make([]byte, r.ContentLength)
-		_, err := r.Body.Read(inc)
-		if err != nil && err != io.EOF {
-			log.Printf("error 301: %v\n", err)
-		}
-
-		js := make(map[string]interface{})
-
-		err = json.Unmarshal(inc, &js)
-		if err != nil {
-			log.Printf("error 302: %v\n", err)
-		}
-
-		chkOk, err := checkCredentials(js["username"].(string), js["password"].(string))
+	if strings.ToUpper(r.Method) == "GET" {
+		chkOk, err := checkCredentials(r.Header.Get("user"), r.Header.Get("pass"))
 		if err != nil {
 			log.Printf("error 303: %v\n", err)
 		}
 
 		if chkOk {
-			okKey, err := userHasValidKey(js["username"].(string))
+			okKey, err := userHasValidKey(r.Header.Get("user"))
 			if err != nil {
 				log.Printf("error 304: %v\n", err)
 			}
 
 			if okKey {
-				key, err := extractValidKey(js["username"].(string))
+				key, err := extractValidKey(r.Header.Get("user"))
 				if err != nil {
 					log.Printf("error 305: %v\n", err)
 				}
@@ -176,10 +162,11 @@ func authenticate(w http.ResponseWriter, r *http.Request) {
 				if err != nil {
 					log.Printf("error 306: %v\n", err)
 				}
+				w.Header().Add("auth", key)
 				fmt.Fprint(w, string(res))
 			} else {
 				key := generateKey()
-				if err := insertKey(js["username"].(string), key); err != nil {
+				if err := insertKey(r.Header.Get("user"), key); err != nil {
 					log.Printf("error 307: %v\n", err)
 				}
 
@@ -188,6 +175,7 @@ func authenticate(w http.ResponseWriter, r *http.Request) {
 				if err != nil {
 					log.Printf("error 308: %v\n", err)
 				}
+				w.Header().Add("auth", key)
 				fmt.Fprint(w, string(res))
 			}
 		}
