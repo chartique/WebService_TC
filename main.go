@@ -78,6 +78,7 @@ func setTemp() {
 
 func settingTemp(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Header: %s", r.Header.Get("auth"))
+	log.Printf("Method: %s", r.Method)
 	if r.Method == "POST" {
 		// Read incoming bytes
 		inc := make([]byte, r.ContentLength)
