@@ -137,7 +137,9 @@ func settingTemp(w http.ResponseWriter, r *http.Request) {
 }
 
 func authenticate(w http.ResponseWriter, r *http.Request) {
-	if r.Method == "POST" {
+	log.Printf("user: %s", r.Header.Get("user"))
+	log.Printf("pass: %s", r.Header.Get("pass"))
+	if strings.ToUpper(r.Method) == "POST" {
 		// Read incoming bytes
 		inc := make([]byte, r.ContentLength)
 		_, err := r.Body.Read(inc)
