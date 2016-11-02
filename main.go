@@ -77,9 +77,7 @@ func setTemp() {
 }
 
 func settingTemp(w http.ResponseWriter, r *http.Request) {
-	log.Printf("Header: %s", r.Header.Get("auth"))
-	log.Printf("Method: %s", r.Method)
-	if r.Method == "POST" {
+	if strings.ToUpper(r.Method) == "POST" {
 		// Read incoming bytes
 		inc := make([]byte, r.ContentLength)
 		_, err := r.Body.Read(inc)
@@ -95,14 +93,13 @@ func settingTemp(w http.ResponseWriter, r *http.Request) {
 		}
 
 		log.Println(
-			js["secretkey"].(string),
 			"",
 			time.Now().Unix(),
 			int64(js["starttime"].(float64)),
 			int64(js["duration"].(float64)),
 			js["temperature"].(float64))
 
-		okKey, err := isValidKey(js["secretkey"].(string))
+		okKey, err := isValidKey(r.Header.Get("auth"))
 		if err != nil {
 			log.Printf("error 203: %v\n", err)
 		}
